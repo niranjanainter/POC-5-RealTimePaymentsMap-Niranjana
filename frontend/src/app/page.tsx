@@ -2,6 +2,20 @@
 
 import React, { useEffect, useState } from "react";
 import { Globe, Shield, Activity, RefreshCw, Layers } from "lucide-react";
+import dynamic from "next/dynamic";
+
+// Dynamically import the map module with server-side rendering disabled to prevent window mismatches
+const MapComponent = dynamic(() => import("./components/MapComponent"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full min-h-[400px] bg-[#090D16] rounded-xl flex items-center justify-center border border-slate-800/80">
+      <div className="flex flex-col items-center gap-2 text-slate-400 text-xs">
+        <RefreshCw className="h-5 w-5 animate-spin text-blue-500" />
+        <span>Initializing Geographic Plotters...</span>
+      </div>
+    </div>
+  ),
+});
 
 interface Metric {
   settlement_speed: string;
@@ -38,7 +52,7 @@ export default function Home() {
       .then((data) => {
         setData(data);
         if (data.systems && data.systems.length > 0) {
-          setSelectedSystem(data.systems[0]); // Default to first system
+          setSelectedSystem(data.systems[0]);
         }
         setLoading(false);
       })
@@ -117,26 +131,27 @@ export default function Home() {
       </section>
 
       {/* Main Workspace Dashboard Grid */}
-      <section className="flex-1 flex flex-col overflow-hidden">
-        {/* Mock Map / Coordinate View Header Area */}
-        <div className="flex-1 bg-[#090D16] relative flex items-center justify-center border-b border-slate-800/60 p-6">
-          <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
-          
-          <div className="text-center max-w-xl z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/50 border border-slate-700/50 text-xs text-slate-300 mb-4">
-              <Layers className="h-3.5 w-3.5 text-blue-400" />
-              <span>Map Anchor Coordinate Focus</span>
-            </div>
-            <h3 className="text-2xl font-bold tracking-tight text-white mb-2">{selectedSystem?.scheme_name}</h3>
-            <p className="text-sm text-slate-400 mb-4">{selectedSystem?.insight_summary}</p>
-            <div className="font-mono text-xs text-slate-500 bg-slate-950/40 border border-slate-800/80 px-4 py-2 rounded-lg inline-block">
-              LAT: {selectedSystem?.latitude} / LON: {selectedSystem?.longitude}
-            </div>
+      <section className="flex-1 flex flex-col overflow-hidden p-6 gap-6">
+        {/* Dynamic Interactive Leaflet Map Panel */}
+        <div className="flex-1 min-h-0 relative">
+          <MapComponent systems={data?.systems || []} selectedSystem={selectedSystem} />
+        </div>
+
+        {/* Selected Node Intelligence Breakdown */}
+        <div className="bg-slate-900/20 border border-slate-800/80 rounded-xl p-5 backdrop-blur-sm">
+          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 mb-2">
+            <Layers className="h-3.5 w-3.5" />
+            <span>Active Node Context</span>
+          </div>
+          <h3 className="text-xl font-bold tracking-tight text-white mb-1">{selectedSystem?.scheme_name}</h3>
+          <p className="text-sm text-slate-400 mb-3">{selectedSystem?.insight_summary}</p>
+          <div className="font-mono text-xs text-slate-500 bg-slate-950/40 border border-slate-800/40 px-3 py-1.5 rounded-lg inline-block">
+            LAT: {selectedSystem?.latitude} / LON: {selectedSystem?.longitude}
           </div>
         </div>
 
         {/* Telemetry Metrics Footer Panel */}
-        <div className="bg-[#0F172A]/40 border-t border-slate-800 p-6 grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-3 gap-6">
           <div className="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl flex items-start gap-3">
             <Activity className="h-5 w-5 text-indigo-400 mt-0.5" />
             <div>
