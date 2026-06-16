@@ -1,84 +1,79 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 
-// Fix for default Leaflet marker icon paths in Next.js framework environment
-const customIcon = new L.Icon({
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+// Reset default Leaflet icon paths to prevent asset resolution breakages during compilation loops
+const DefaultIcon = L.icon({
+  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
 });
+L.Marker.prototype.options.icon = DefaultIcon;
 
-interface PaymentSystem {
-  id: string;
-  country: string;
-  scheme_name: string;
-  latitude: number;
-  longitude: number;
-  insight_summary: string;
-}
-
-interface MapProps {
-  systems: PaymentSystem[];
-  selectedSystem: PaymentSystem | null;
-}
-
-// Custom updater component to smoothly slide the map camera when the user clicks a sidebar rail node
-function MapRecenter({ lat, lon }: { lat: number; lon: number }) {
+// Internal utility helper to animate camera pans automatically when a selected rail shifts
+function RecenterMap({ coordinates }: { coordinates: [number, number] }) {
   const map = useMap();
-  useEffect(() => {
-    if (lat && lon) {
-      map.setView([lat, lon], 4, { animate: true });
-    }
-  }, [lat, lon, map]);
+  if (coordinates) {
+    map.setView(coordinates, 4, { animate: true });
+  }
   return null;
 }
 
-export default function MapComponent({ systems, selectedSystem }: MapProps) {
-  // Default map anchor point handles global visibility overview
-  const defaultLat = selectedSystem ? selectedSystem.latitude : 20.0;
-  const defaultLon = selectedSystem ? selectedSystem.longitude : 0.0;
+export default function MapComponent(props: any) {
+  // Gracefully read both property naming bounds and default safely to an empty array
+  const systems = props.railsData || props.systems || [];
+  const activeRail = props.activeRail;
+  
+  const defaultCenter: [number, number] = [20.0, 0.0];
 
   return (
-    <div className="w-full h-full min-h-[400px] bg-[#090D16] rounded-xl overflow-hidden border border-slate-800/80 relative z-0">
+    <div className="w-full h-full">
       <MapContainer
-        center={[defaultLat, defaultLon]}
-        zoom={3}
-        className="w-full h-full"
-        zoomControl={true}
+        center={activeRail?.coordinates || defaultCenter}
+        zoom={2}
+        className="h-full w-full"
+        style={{ background: "#0B111E" }}
       >
-        {/* Sleek, dark-themed base map layer fitting premium fintech platforms */}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
-        
-        {systems.map((system) => (
-          <Marker
-            key={system.id}
-            position={[system.latitude, system.longitude]}
-            icon={customIcon}
-          >
-            <Popup className="custom-leaflet-popup">
-              <div className="p-1 text-slate-900">
-                <h4 className="font-bold text-sm border-b pb-1 mb-1">{system.scheme_name}</h4>
-                <p className="text-xs text-slate-600 font-medium mb-1">{system.country}</p>
-                <p className="text-xs leading-relaxed">{system.insight_summary}</p>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
 
-        {selectedSystem && (
-          <MapRecenter lat={selectedSystem.latitude} lon={selectedSystem.longitude} />
+        {activeRail?.coordinates && (
+          <RecenterMap coordinates={activeRail.coordinates} />
         )}
+
+        {systems.map((system: any) => {
+          const lat = system.coordinates?.[0] || system.latitude;
+          const lng = system.coordinates?.[1] || system.longitude;
+
+          if (!lat || !lng) return null;
+
+          return (
+            <Marker 
+              key={system.id} 
+              position={[lat, lng]}
+              eventHandlers={{
+                click: () => {
+                  if (props.onMarkerClick) {
+                    props.onMarkerClick(system);
+                  }
+                },
+              }}
+            >
+              <Popup>
+                <div className="text-slate-900 p-1 font-sans">
+                  <strong className="block text-sm font-black">{system.name}</strong>
+                  <span className="text-[11px] text-slate-500 font-medium">{system.region}</span>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
     </div>
   );
